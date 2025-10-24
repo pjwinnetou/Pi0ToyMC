@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cmath>
 #include <memory>
 
@@ -307,11 +308,62 @@ int main(int argc, char** argv) {
             << "  Accepted (both |eta_g| <= " << etaMax << "): " << nAccepted
             << "  Efficiency: " << (nTried ? (double)nAccepted / nTried : 0.0) << std::endl;
 
+
+  ofstream fitout(Form("fit_results_index%d.txt", param_index));
   for(int i=0; i< nPtBins; i++){
     for(int j=0; j<nAlphaBins ; j++){
-      h_mass_smeared[i][j]->Write();
+      //if (!h || h->GetEntries() < 5) continue;  // skip empty ones
+
+      int maxBin = h_mass_smeared[i][j]->GetMaximumBin();
+      double peak = h_mass_smeared[i][j]->GetXaxis()->GetBinCenter(maxBin);
+      double threshold = std::max(peak / 20.0, 2.0);
+      int nbins = h_mass_smeared[i][j]->GetNbinsX();
+
+      int leftBin = maxBin;
+      int rightBin = maxBin;
+
+      for (int b = maxBin; b >= 1; --b) {
+        if (h_mass_smeared[i][j]->GetBinContent(b) < threshold) {
+          leftBin = b;
+          break;
+        }
+      }
+
+      for (int b = maxBin; b <= nbins; ++b) {
+        if (h_mass_smeared[i][j]->GetBinContent(b) < threshold) {
+          rightBin = b;
+          break;
+        }
+      }
+
+      double x_left = h_mass_smeared[i][j]->GetXaxis()->GetBinLowEdge(leftBin);
+      double x_right = h_mass_smeared[i][j]->GetXaxis()->GetBinUpEdge(rightBin);
+
+      if (x_left == x_right) {
+        x_left = h_mass_smeared[i][j]->GetXaxis()->GetXmin();
+        x_right = h_mass_smeared[i][j]->GetXaxis()->GetXmax();
+      }
+      if (x_right - x_left < 1e-6) continue;
+
+      h_mass_smeared[i][j]->Fit("gaus", "RQ0", "", x_left, x_right);
+
+      TF1* f = h_mass_smeared[i][j]->GetFunction("gaus");
+
+      float mean = f->GetParameter(1);
+      float sigma = f->GetParameter(2);
+      float meanE = f->GetParError(1);
+      float sigmaE = f->GetParError(2);
+      double chi2 = f->GetChisquare();
+      double ndf = f->GetNDF();
+      double chi2ndf = (ndf > 0) ? chi2 / ndf : 0.0;
+
+      fitout << i << " " << j << " " << mean << " " << meanE << " " << sigma << " " << sigmaE << " " << chi2 << " " << ndf << " " << chi2ndf << "\n";
+      
+      delete f;
     }
   }
+  fitout.close();
+
   fout->Write();
   fout->Close();
   std::cout << "Done.. " << std::endl;
