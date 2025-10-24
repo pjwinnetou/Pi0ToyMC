@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
   TFile *inputhistfile = new TFile("hist_pt0.0_all.root","read");
   TH1D *h1 = (TH1D*) inputhistfile->Get("hpt");
 
-  auto fout = std::make_unique<TFile>(Form("pi0_toymc_index%d.root",param_index), "RECREATE");
+  auto fout = std::make_unique<TFile>(Form("outtree/pi0_toymc_index%d.root",param_index), "RECREATE");
   TH1D h_pt_pi0("h_pt_pi0", ";p_{T}^{#pi^{0}} [GeV];Events", 200, ptMin, ptMax);
   TH1D h_y_pi0 ("h_y_pi0",  ";y^{#pi^{0}};Events",          120, -yMax, yMax);
 
@@ -231,7 +231,6 @@ int main(int argc, char** argv) {
   }
 
   long long nTried = 0;
-  long long nAccepted = 0;
 
   float singleptcut = 0.5;
   float singleetacut = 0.3;
@@ -243,12 +242,15 @@ int main(int argc, char** argv) {
   long long totalAccepted = 0;
   const long long targetPerBin = nEvents;
 
-  while(totalAccepted < nPtBins * nAlphaBins * targetPerBin)
+  const long long TotalTargetEvents = nPtBins * nAlphaBins * targetPerBin;
+
+  while(totalAccepted < TotalTargetEvents)
   {
     ++nTried;
     double vz = gen.rng_.Gaus(0.0, gen.sigma_vz);
     DecayResult ev = gen.GenerateOne();
     if (!ev.accepted) continue;
+
 
     double pt = ev.pi0.Pt();
     double y = ev.pi0.Rapidity();
@@ -296,20 +298,22 @@ int main(int argc, char** argv) {
     alpha = (vsm1.E()-vsm2.E())/(vsm1.E() +vsm2.E());
     int thisalphabin = GetAlphaBin(thisptbin,alpha);
     if(thisptbin == -1 || thisalphabin == -1) continue;
+    
 
-    if(binCounts[thisptbin][thisalphabin] < targetPerBin) {
-      h_mass_smeared[thisptbin][thisalphabin]->Fill(sm_mass);
-      binCounts[thisptbin][thisalphabin]++;
-      totalAccepted++;
-    }
+    if(binCounts[thisptbin][thisalphabin] >= targetPerBin) continue;
+    h_mass_smeared[thisptbin][thisalphabin]->Fill(sm_mass);
+    binCounts[thisptbin][thisalphabin]++;
+    totalAccepted++;
+
+    if(totalAccepted % static_cast<long long>(TotalTargetEvents * 0.01) == 0) std::cout << "filled " << totalAccepted << " out of " << TotalTargetEvents << "(" << (float)totalAccepted/TotalTargetEvents*100. << "%)  /  tried " << nTried << std::endl;
   }
 
   std::cout << "\nTried: " << nTried
-            << "  Accepted (both |eta_g| <= " << etaMax << "): " << nAccepted
-            << "  Efficiency: " << (nTried ? (double)nAccepted / nTried : 0.0) << std::endl;
+            << "  Accepted (both |eta_g| <= " << etaMax << "): " <<totalAccepted 
+            << "  Efficiency: " << (nTried ? (double)totalAccepted / nTried : 0.0) << std::endl;
 
 
-  ofstream fitout(Form("fit_results_index%d.txt", param_index));
+  ofstream fitout(Form("outfile/fit_results_index%d.txt", param_index));
   for(int i=0; i< nPtBins; i++){
     for(int j=0; j<nAlphaBins ; j++){
       //if (!h || h->GetEntries() < 5) continue;  // skip empty ones
