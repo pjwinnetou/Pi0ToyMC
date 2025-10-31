@@ -67,4 +67,13 @@ inline void GetParameterSet(int index, double& aE, double& bE, double& cE, doubl
     bPos = bPos_grid[iBp];
 }
 
+void getrelativewidth(double a, double ae, double &b, double &be)
+{
+  double ratio = b/a;
+  double sigmaratio = sqrt(be*be/(a*a) + ae*ae*b*b/(a*a));
+  b = ratio;
+  be = sigmaratio;
+}
+
+
 #endif

@@ -287,7 +287,6 @@ int main(int argc, char** argv) {
     if(vsm1.Pt() < singleptcut || vsm2.Pt() < singleptcut) continue;
     if(abs(vsm1.Eta()) > singleetacut || abs(vsm2.Eta()) > singleetacut) continue;
     TLorentzVector vsm = vsm1 + vsm2;
-    //if(vsm.Pt()<2*1.2*singleptcut) continue;
     float smpt = vsm.Pt();
     if(smpt< 1) continue;
     
@@ -316,7 +315,6 @@ int main(int argc, char** argv) {
   ofstream fitout(Form("outfile/fit_results_index%d.txt", param_index));
   for(int i=0; i< nPtBins; i++){
     for(int j=0; j<nAlphaBins ; j++){
-      //if (!h || h->GetEntries() < 5) continue;  // skip empty ones
 
       int maxBin = h_mass_smeared[i][j]->GetMaximumBin();
       double peak = h_mass_smeared[i][j]->GetXaxis()->GetBinCenter(maxBin);
